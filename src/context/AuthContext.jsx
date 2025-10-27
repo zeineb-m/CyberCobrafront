@@ -1,148 +1,84 @@
-"use client"
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import axios from "axios";
 
-import { createContext, useContext, useState, useEffect, useCallback } from "react"
-
-const AuthContext = createContext()
-
-// Mock JWT token generator
-const generateMockToken = (user) => {
-  const payload = {
-    sub: user.id,
-    name: user.name,
-    email: user.email,
-    roles: user.roles,
-    exp: Math.floor(Date.now() / 1000) + 86400, // 24 hours
-  }
-  return btoa(JSON.stringify(payload))
-}
-
-// Mock users database
-const MOCK_USERS = [
-  { id: "1", email: "admin@cybercobra.gov", password: "admin123", name: "Admin User", roles: ["admin", "operator"] },
-  { id: "2", email: "operator@cybercobra.gov", password: "operator123", name: "Operator User", roles: ["operator"] },
-  { id: "3", email: "user@cybercobra.gov", password: "user123", name: "Public User", roles: ["public"] },
-]
+const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null)
-  const [token, setToken] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
+  // Charger token et user depuis sessionStorage au démarrage
   useEffect(() => {
-    const storedToken = sessionStorage.getItem("auth_token")
-    if (storedToken) {
-      try {
-        const payload = JSON.parse(atob(storedToken))
-        if (payload.exp > Math.floor(Date.now() / 1000)) {
-          setToken(storedToken)
-          setUser({
-            id: payload.sub,
-            name: payload.name,
-            email: payload.email,
-            roles: payload.roles,
-          })
-        } else {
-          sessionStorage.removeItem("auth_token")
-        }
-      } catch (e) {
-        sessionStorage.removeItem("auth_token")
-      }
+    const storedToken = sessionStorage.getItem("access");
+    const storedUser = sessionStorage.getItem("user");
+    if (storedToken && storedUser) {
+      const parsedUser = JSON.parse(storedUser);
+      parsedUser.is_superuser = parsedUser.is_superuser === true || parsedUser.is_superuser === 1;
+      setUser(parsedUser);
+      setToken(storedToken);
     }
-    setLoading(false)
-  }, [])
+    setLoading(false);
+  }, []);
 
-  const login = useCallback(async (email, password) => {
-    setError(null)
+  const login = useCallback(async (username, password) => {
+    setError(null);
     try {
-      const mockUser = MOCK_USERS.find((u) => u.email === email && u.password === password)
-      if (!mockUser) {
-        throw new Error("Invalid email or password")
+      const res = await axios.post("http://127.0.0.1:8000/api/auth/login/", {
+        username,
+        password,
+      });
+
+      if (res.data.success) {
+        const userData = res.data.user;
+        userData.is_superuser = userData.is_superuser === true || userData.is_superuser === 1;
+        setUser(userData);
+        setToken(res.data.access);
+        sessionStorage.setItem("access", res.data.access);
+        sessionStorage.setItem("refresh", res.data.refresh);
+        sessionStorage.setItem("user", JSON.stringify(userData));
+        return userData;
+      } else {
+        setError(res.data.message || "Login failed");
+        throw new Error(res.data.message);
       }
-
-      const userData = { id: mockUser.id, name: mockUser.name, email: mockUser.email, roles: mockUser.roles }
-      const newToken = generateMockToken(userData)
-
-      setUser(userData)
-      setToken(newToken)
-      sessionStorage.setItem("auth_token", newToken)
-
-      return userData
     } catch (err) {
-      setError(err.message)
-      throw err
+      setError(err.response?.data?.message || "Login failed");
+      throw err;
     }
-  }, [])
+  }, []);
 
-  const logout = useCallback(() => {
-    setUser(null)
-    setToken(null)
-    setError(null)
-    sessionStorage.removeItem("auth_token")
-  }, [])
-
-  const hasRole = useCallback((role) => user?.roles?.includes(role) || false, [user])
-
-  const hasAnyRole = useCallback(
-    (roles) => {
-      if (!Array.isArray(roles)) return false
-      return roles.some((role) => user?.roles?.includes(role))
-    },
-    [user],
-  )
-
-  const hasAllRoles = useCallback(
-    (roles) => {
-      if (!Array.isArray(roles)) return false
-      return roles.every((role) => user?.roles?.includes(role))
-    },
-    [user],
-  )
-
-  const getPermissions = useCallback(() => {
-    if (!user) return []
-    const permissions = []
-    if (user.roles.includes("admin")) {
-      permissions.push("manage_users", "manage_system", "view_reports", "manage_zones", "manage_equipment")
+   const logout = async () => {
+    try {
+      const refresh = sessionStorage.getItem("refresh");
+      if (!refresh) {
+        console.warn("[Logout] Aucun token de rafraîchissement trouvé.");
+      } else {
+        console.log("[Logout] Envoi de la requête au backend...");
+        await axios.post("http://127.0.0.1:8000/api/auth/logout/", { refresh });
+        console.log("[Logout] Déconnexion réussie côté serveur ✅");
+      }
+    } catch (err) {
+      console.error("[Logout] Erreur lors du logout:", err.response || err);
+    } finally {
+      // Toujours nettoyer le local/session storage
+      setUser(null);
+      setToken(null);
+      sessionStorage.clear();
     }
-    if (user.roles.includes("operator")) {
-      permissions.push("manage_zones", "manage_equipment", "view_reports", "manage_cameras")
-    }
-    if (user.roles.includes("public")) {
-      permissions.push("view_public_data")
-    }
-    return permissions
-  }, [user])
+  };
 
-  const hasPermission = useCallback(
-    (permission) => {
-      return getPermissions().includes(permission)
-    },
-    [getPermissions],
-  )
 
-  const value = {
-    user,
-    token,
-    loading,
-    error,
-    login,
-    logout,
-    hasRole,
-    hasAnyRole,
-    hasAllRoles,
-    getPermissions,
-    hasPermission,
-    isAuthenticated: !!user,
-  }
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider value={{ user, setUser, token, setToken, loading, error, login, logout, isAuthenticated: !!user }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext)
-  if (!context) {
-    throw new Error("useAuth must be used within AuthProvider")
-  }
-  return context
+  const context = useContext(AuthContext);
+  if (!context) throw new Error("useAuth must be used within AuthProvider");
+  return context;
 }

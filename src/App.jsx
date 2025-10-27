@@ -1,14 +1,16 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom"
+
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet } from "react-router-dom"
 import { AuthProvider } from "./context/AuthContext"
 import { ThemeProvider } from "./context/ThemeContext"
 import { DataProvider } from "./context/DataContext"
 import ProtectedRoute from "./components/ProtectedRoute"
 import Layout from "./components/Layout"
+import ProfilePage from "./components/ProfilePage.jsx"
 import HomePage from "./pages/HomePage"
 import FeaturesPage from "./pages/FeaturesPage"
 import PricingPage from "./pages/PricingPage"
 import LoginPage from "./pages/LoginPage"
-import RegisterPage from "./pages/RegisterPage"
+
 import DashboardPage from "./pages/DashboardPage"
 import UsersPage from "./pages/admin/UsersPage"
 import ZonesPage from "./pages/admin/ZonesPage"
@@ -24,72 +26,28 @@ function App() {
         <DataProvider>
           <Router>
             <Routes>
+              {/* Public routes */}
               <Route path="/" element={<HomePage />} />
               <Route path="/features" element={<FeaturesPage />} />
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
+              
 
-              <Route
-                element={
-                  <ProtectedRoute>
-                    <Layout />
-                  </ProtectedRoute>
-                }
-              >
+              {/* Protected routes (staff only) */}
+              <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
                 <Route path="/dashboard" element={<DashboardPage />} />
-
-                {/* Admin routes */}
-                <Route
-                  path="/admin/users"
-                  element={
-                    <ProtectedRoute requiredRole="admin">
-                      <UsersPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin/zones"
-                  element={
-                    <ProtectedRoute requiredRole="operator">
-                      <ZonesPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin/objects"
-                  element={
-                    <ProtectedRoute requiredRole="operator">
-                      <ObjectsPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin/equipment"
-                  element={
-                    <ProtectedRoute requiredRole="operator">
-                      <EquipmentPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin/reports"
-                  element={
-                    <ProtectedRoute requiredRole="operator">
-                      <ReportsPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/admin/cameras"
-                  element={
-                    <ProtectedRoute requiredRole="operator">
-                      <CamerasPage />
-                    </ProtectedRoute>
-                  }
-                />
+                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/admin" element={<Outlet />}>
+                  <Route path="users" element={<UsersPage />} />
+                  <Route path="zones" element={<ZonesPage />} />
+                  <Route path="objects" element={<ObjectsPage />} />
+                  <Route path="equipment" element={<EquipmentPage />} />
+                  <Route path="reports" element={<ReportsPage />} />
+                  <Route path="cameras" element={<CamerasPage />} />
+                </Route>
               </Route>
 
+              {/* Catch-all */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Router>

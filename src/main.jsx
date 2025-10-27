@@ -7,11 +7,12 @@ import { LanguageProvider } from "./context/LanguageContext.jsx"
 
 const root = document.getElementById("root")
 ReactDOM.createRoot(root).render(
-  <React.StrictMode>
+<React.StrictMode>
+  <LanguageProvider>
     <ErrorBoundary>
-      <LanguageProvider>
-        <App />
-      </LanguageProvider>
+      <App />
     </ErrorBoundary>
-  </React.StrictMode>,
+  </LanguageProvider>
+</React.StrictMode>
+
 )

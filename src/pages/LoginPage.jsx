@@ -1,141 +1,192 @@
-"use client"
-
-import { useState } from "react"
-import { useNavigate } from "react-router-dom"
-import { useAuth } from "../context/AuthContext"
+import { useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import axios from "axios";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("admin@cybercobra.gov")
-  const [password, setPassword] = useState("admin123")
-  const [loading, setLoading] = useState(false)
-  const navigate = useNavigate()
-  const { login, error } = useAuth()
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [stream, setStream] = useState(null);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    setLoading(true)
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const navigate = useNavigate();
+  const { login, setUser, setToken } = useAuth();
 
+  // Démarrer la caméra
+  const startCamera = async () => {
+    setError(null);
     try {
-      await login(email, password)
-      navigate("/dashboard")
-    } catch (err) {
-      // Error is handled by context
-    } finally {
-      setLoading(false)
-    }
-  }
+      const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+      videoRef.current.srcObject = videoStream;
+      setStream(videoStream);
 
-  const demoAccounts = [
-    { email: "admin@cybercobra.gov", password: "admin123", role: "Admin", desc: "Full system access" },
-    { email: "operator@cybercobra.gov", password: "operator123", role: "Operator", desc: "Zone & equipment management" },
-    { email: "user@cybercobra.gov", password: "user123", role: "Public", desc: "View-only access" },
-  ]
+      await new Promise((resolve) => {
+        videoRef.current.onloadedmetadata = () => resolve();
+      });
+
+      console.log("[FaceLogin] Camera started");
+    } catch (err) {
+      console.error("[FaceLogin] Cannot access camera:", err);
+      setError("Cannot access camera");
+    }
+  };
+
+  // Capturer la photo et retourner un Blob
+  const capturePhoto = () => {
+    if (!videoRef.current) return null;
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    console.log("[FaceLogin] Photo captured");
+
+    return new Promise((resolve) => {
+      canvas.toBlob((blob) => resolve(blob), "image/jpeg");
+    });
+  };
+
+  // Stopper la caméra
+  const stopCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop());
+      setStream(null);
+      console.log("[FaceLogin] Camera stopped");
+    }
+  };
+
+  // Login classique
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      await login(username, password);
+      navigate("/dashboard");
+    } catch (err) {
+      console.error("[Login] Error:", err);
+      setError("Login failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Login avec face
+  const handleFaceButtonClick = async () => {
+    if (!stream) {
+      // Si la caméra n'est pas démarrée, on la démarre
+      await startCamera();
+    } else {
+      // Sinon, on capture et on envoie pour login
+      setLoading(true);
+      setError(null);
+      try {
+        const photoBlob = await capturePhoto();
+        if (!photoBlob) {
+          setError("No photo captured");
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append("image", photoBlob, "face.jpg");
+
+        console.log("[FaceLogin] Sending photo to backend...");
+
+        const res = await axios.post(
+          "http://127.0.0.1:8000/api/auth/facelogin/",
+          formData,
+          { headers: { "Content-Type": "multipart/form-data" } }
+        );
+
+        console.log("[FaceLogin] Response:", res.data);
+
+        if (res.data.success) {
+          const userData = res.data.user;
+          setUser(userData);
+          setToken(res.data.access);
+          sessionStorage.setItem("access", res.data.access);
+          sessionStorage.setItem("refresh", res.data.refresh);
+          sessionStorage.setItem("user", JSON.stringify(userData));
+          navigate(userData.is_superuser ? "/dashboard" : "/user-page");
+        } else {
+          setError(res.data.message || "Face login failed");
+        }
+      } catch (err) {
+        console.error("[FaceLogin] Error:", err.response || err);
+        setError(err.response?.data?.message || "Face login failed");
+      } finally {
+        setLoading(false);
+        stopCamera();
+      }
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center px-6">
-      <div className="w-full max-w-md">
-        <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-8 md:p-10 shadow-2xl">
-          {/* Logo & Title */}
-          <div className="flex flex-col items-center mb-8">
-            <div className="w-16 h-16 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-2xl flex items-center justify-center shadow-lg shadow-cyan-500/50 mb-4">
-              <span className="text-white font-bold text-3xl">🐍</span>
-            </div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-              Welcome Back
-            </h1>
-            <p className="text-slate-400 mt-2">Sign in to CyberCobra Platform</p>
-          </div>
+    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6">
+      <div className="w-full max-w-md bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-8 shadow-2xl">
+        <h1 className="text-3xl font-bold text-center mb-6 text-white">Sign in</h1>
 
-          {error && (
-            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm">
-              {error}
-            </div>
-          )}
+        {error && <p className="text-red-400 text-sm mb-4">{error}</p>}
 
-          <form onSubmit={handleSubmit} className="space-y-5 mb-8">
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all"
-                placeholder="your@email.gov"
-              />
-            </div>
+        {/* Login classique */}
+        <form onSubmit={handleSubmit} className="space-y-4 mb-6">
+          <input
+            type="text"
+            placeholder="Username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className="w-full px-4 py-2 rounded-lg bg-slate-800 text-white border border-slate-700"
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full px-4 py-2 rounded-lg bg-slate-800 text-white border border-slate-700"
+          />
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-lg font-semibold"
+          >
+            {loading ? "Signing in..." : "Sign In"}
+          </button>
+        </form>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all"
-                placeholder="••••••••"
-              />
-            </div>
+        <div className="text-center text-slate-400 mb-4">OR</div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold rounded-lg hover:shadow-xl hover:shadow-cyan-500/50 transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? "Signing in..." : "Sign In"}
-            </button>
-          </form>
+        {/* Face login */}
+        <div className="flex flex-col items-center gap-4">
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            className="w-80 h-60 bg-black rounded-lg"
+          />
+          <canvas ref={canvasRef} className="hidden" />
 
-          {/* Divider */}
-          <div className="relative mb-8">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-slate-700"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-slate-900/50 text-slate-400">Demo Accounts</span>
-            </div>
-          </div>
-
-          {/* Demo Accounts */}
-          <div className="space-y-3 mb-6">
-            {demoAccounts.map((account) => (
-              <button
-                key={account.email}
-                onClick={() => {
-                  setEmail(account.email)
-                  setPassword(account.password)
-                }}
-                className="w-full text-left p-4 bg-slate-800/30 border border-slate-700/50 rounded-lg hover:border-cyan-500/50 hover:bg-slate-800/50 transition-all group"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="font-semibold text-white group-hover:text-cyan-400 transition-colors">
-                      {account.role}
-                    </div>
-                    <div className="text-slate-400 text-xs mt-1">{account.desc}</div>
-                  </div>
-                  <div className="text-slate-500 group-hover:text-cyan-500 transition-colors">→</div>
-                </div>
-              </button>
-            ))}
-          </div>
-
-          {/* Register Link */}
-          <div className="text-center">
-            <p className="text-slate-400 text-sm">
-              Don't have an account?{" "}
-              <button
-                onClick={() => navigate("/register")}
-                className="text-cyan-400 hover:text-cyan-300 font-medium transition-colors"
-              >
-                Create Account
-              </button>
-            </p>
-          </div>
+          <button
+            onClick={handleFaceButtonClick}
+            disabled={loading}
+            className={`px-4 py-2 rounded-lg text-white ${
+              !stream ? "bg-blue-500" : "bg-green-500"
+            }`}
+          >
+            {loading
+              ? stream
+                ? "Logging in..."
+                : "Starting..."
+              : "Login with Face"}
+          </button>
         </div>
-
-        <p className="text-center text-slate-500 text-sm mt-6">
-          🔒 Secured with 256-bit SSL encryption
-        </p>
       </div>
     </div>
-  )
+  );
 }

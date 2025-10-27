@@ -10,16 +10,14 @@ export default function Sidebar() {
   const isActive = (path) => location.pathname === path
 
   const menuItems = [
-    { path: "/dashboard", label: "Dashboard", icon: "📊", roles: ["admin", "operator", "public"] },
-    { path: "/admin/zones", label: "Zones Sensibles", icon: "🗺️", roles: ["admin", "operator"] },
-    { path: "/admin/objects", label: "Objets", icon: "📦", roles: ["admin", "operator"] },
-    { path: "/admin/equipment", label: "Équipements", icon: "🔧", roles: ["admin", "operator"] },
-    { path: "/admin/cameras", label: "Caméras", icon: "📹", roles: ["admin", "operator"] },
-    { path: "/admin/reports", label: "Rapports", icon: "📈", roles: ["admin", "operator"] },
-    { path: "/admin/users", label: "Utilisateurs", icon: "👥", roles: ["admin"] },
+    { path: "/dashboard", label: "Dashboard", icon: "📊" },
+    { path: "/admin/zones", label: "Zones Sensibles", icon: "🗺️" },
+    { path: "/admin/objects", label: "Objets", icon: "📦" },
+    { path: "/admin/equipment", label: "Équipements", icon: "🔧" },
+    { path: "/admin/cameras", label: "Caméras", icon: "📹" },
+    { path: "/admin/reports", label: "Rapports", icon: "📈" },
+   { path: "/admin/users", label: "Utilisateurs", icon: "👥", superuserOnly: true },
   ]
-
-  const visibleItems = menuItems.filter((item) => user?.roles?.some((role) => item.roles.includes(role)))
 
   return (
     <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col sticky top-0 h-screen">
@@ -34,23 +32,25 @@ export default function Sidebar() {
           </div>
         </div>
       </div>
+<nav className="flex-1 px-3 py-6 space-y-2 overflow-y-auto">
+  {menuItems
+    .filter(item => !item.superuserOnly || (item.superuserOnly && user?.is_superuser))
 
-      <nav className="flex-1 px-3 py-6 space-y-2 overflow-y-auto">
-        {visibleItems.map((item) => (
-          <Link
-            key={item.path}
-            to={item.path}
-            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-              isActive(item.path)
-                ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-medium shadow-lg shadow-cyan-500/30"
-                : "text-slate-400 hover:bg-slate-800/50 hover:text-white"
-            }`}
-          >
-            <span className="text-lg">{item.icon}</span>
-            <span>{item.label}</span>
-          </Link>
-        ))}
-      </nav>
+    .map((item) => (
+      <Link
+        key={item.path}
+        to={item.path}
+        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+          isActive(item.path)
+            ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-medium shadow-lg shadow-cyan-500/30"
+            : "text-slate-400 hover:bg-slate-800/50 hover:text-white"
+        }`}
+      >
+        <span className="text-lg">{item.icon}</span>
+        <span>{item.label}</span>
+      </Link>
+    ))}
+</nav>
 
       <div className="p-4 border-t border-slate-800">
         <p className="text-xs text-slate-500 text-center">CyberCobra v1.0</p>
