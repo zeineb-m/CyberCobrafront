@@ -4,8 +4,7 @@ import { useState, useEffect } from "react"
 import { useAuth } from "../../context/AuthContext"
 import Modal from "../../components/Modal"
 
-// Définir l'URL du backend selon l'environnement
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "[http://127.0.0.1:8000](http://127.0.0.1:8000)"
+const BACKEND_URL = "[https://cybercobra-4.onrender.com](https://cybercobra-4.onrender.com)"
 
 export default function UsersPage() {
 const { user: currentUser, token } = useAuth()
@@ -28,14 +27,12 @@ const [loadingForm, setLoadingForm] = useState(false)
 const [error, setError] = useState("")
 const [searchTerm, setSearchTerm] = useState("")
 
-// Vérification superuser
 useEffect(() => {
 if (!currentUser?.is_superuser) {
 alert("Unauthorized! Only superusers can manage users.")
 }
 }, [currentUser])
 
-// Charger les utilisateurs
 useEffect(() => {
 if (!token) return
 fetchUsers()
@@ -45,8 +42,8 @@ const fetchUsers = async () => {
 try {
 const res = await fetch(`${BACKEND_URL}/api/auth/users/`, {
 headers: { Authorization: `Bearer ${token}` },
-})
-const data = await res.json()
+});
+const data = await res.json();
 if (res.ok) setUsers(data)
 else console.error(data)
 } catch (err) {
@@ -80,9 +77,8 @@ try {
 
   const url = editingId
     ? `${BACKEND_URL}/api/auth/users/${editingId}/`
-    : `${BACKEND_URL}/api/auth/register/`
-
-  const method = editingId ? "PUT" : "POST"
+    : `${BACKEND_URL}/api/auth/register/`;
+  const method = editingId ? "PUT" : "POST";
 
   const res = await fetch(url, {
     method,
@@ -250,5 +246,24 @@ className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-
           <input type="checkbox" name="is_staff" checked={formData.is_staff} onChange={handleChange} className="accent-cyan-500"/>
           Is Staff
         </label>
-        <label className="flex items-center gap
+        <label className="flex items-center gap-2">
+          <input type="checkbox" name="is_active" checked={formData.is_active} onChange={handleChange} className="accent-green-500"/>
+          Is Active
+        </label>
+
+        <div className="flex gap-3 pt-4">
+          <button onClick={handleSaveUser} disabled={loadingForm} className="flex-1 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-lg font-semibold hover:shadow-lg transition-all">
+            {loadingForm ? "Saving..." : editingId ? "💾 Update User" : "✨ Add User"}
+          </button>
+          <button onClick={() => setShowModal(false)} className="flex-1 py-2 bg-slate-800/50 border border-slate-700 text-slate-300 rounded-lg hover:bg-slate-800 transition-all">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </Modal>
+  </div>
+</div>
 ```
+
+)
+}
