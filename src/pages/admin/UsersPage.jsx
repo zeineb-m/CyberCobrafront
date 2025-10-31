@@ -4,7 +4,8 @@ import { useState, useEffect } from "react"
 import { useAuth } from "../../context/AuthContext"
 import Modal from "../../components/Modal"
 
-const BACKEND_URL = "https://cybercobra-4.onrender.com" // ✅ Backend Render
+// Définir l'URL du backend selon l'environnement
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "[http://127.0.0.1:8000](http://127.0.0.1:8000)"
 
 export default function UsersPage() {
 const { user: currentUser, token } = useAuth()
@@ -42,8 +43,8 @@ fetchUsers()
 
 const fetchUsers = async () => {
 try {
-const res = await fetch(${BACKEND_URL}/api/auth/users/, {
-headers: { Authorization: Bearer ${token} },
+const res = await fetch(`${BACKEND_URL}/api/auth/users/`, {
+headers: { Authorization: `Bearer ${token}` },
 })
 const data = await res.json()
 if (res.ok) setUsers(data)
@@ -66,6 +67,7 @@ setError("Please fill all required fields")
 return
 }
 
+```
 setLoadingForm(true)
 setError("")
 try {
@@ -112,6 +114,7 @@ try {
 } finally {
   setLoadingForm(false)
 }
+```
 
 }
 
@@ -135,9 +138,9 @@ setShowModal(true)
 const handleDelete = async (id) => {
 if (!confirm("Are you sure you want to delete this user?")) return
 try {
-const res = await fetch(${BACKEND_URL}/api/auth/users/${id}/, {
+const res = await fetch(`${BACKEND_URL}/api/auth/users/${id}/`, {
 method: "DELETE",
-headers: { Authorization: Bearer ${token} },
+headers: { Authorization: `Bearer ${token}` },
 })
 if (res.ok) await fetchUsers()
 else console.error(await res.json())
@@ -153,14 +156,7 @@ u =>
 (u.email ?? "").toLowerCase().includes(searchTerm.toLowerCase())
 )
 
-return (
-
-
-
-
-User Management
-Manage system users and permissions
-
+return ( <div className="p-8 bg-slate-950 min-h-screen"> <div className="max-w-6xl mx-auto"> <div className="flex items-center justify-between mb-8"> <div> <h1 className="text-4xl font-bold mb-2 text-white">User Management</h1> <p className="text-slate-400 text-lg">Manage system users and permissions</p> </div>
 <button
 onClick={() => {
 setEditingId(null)
@@ -178,13 +174,10 @@ is_active: true,
 })
 setShowModal(true)
 }}
-className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold rounded-xl hover transition-all flex items-center gap-2"
->
-+ Add User
+className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold rounded-xl hover:shadow-lg transition-all flex items-center gap-2"
+> <span className="text-xl">+</span> Add User </button> </div>
 
-
-
-
+```
     <input
       type="text"
       placeholder="🔍 Search users by name or email..."
@@ -220,10 +213,17 @@ className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-
                 </span>
               </td>
               <td className="px-6 py-4 flex gap-2">
-                <button onClick={() => handleEdit(user)} className="px-3 py-1 text-xs bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-all">
+                <button
+                  onClick={() => handleEdit(user)}
+                  className="px-3 py-1 text-xs bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-all"
+                >
                   ✏️ Edit
                 </button>
-                <button onClick={() => handleDelete(user.id)} disabled={user.id === currentUser?.id} className="px-3 py-1 text-xs bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                <button
+                  onClick={() => handleDelete(user.id)}
+                  disabled={user.id === currentUser?.id}
+                  className="px-3 py-1 text-xs bg-red-500/20 text-red-400 rounded-lg hover:bg-red-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
                   🗑️ Delete
                 </button>
               </td>
@@ -250,20 +250,5 @@ className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-
           <input type="checkbox" name="is_staff" checked={formData.is_staff} onChange={handleChange} className="accent-cyan-500"/>
           Is Staff
         </label>
-        <label className="flex items-center gap-2">
-          <input type="checkbox" name="is_active" checked={formData.is_active} onChange={handleChange} className="accent-green-500"/>
-          Is Active
-        </label>
-
-        <div className="flex gap-3 pt-4">
-          <button onClick={handleSaveUser} disabled={loadingForm} className="flex-1 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-lg font-semibold hover:shadow-lg transition-all">
-            {loadingForm ? "Saving..." : editingId ? "💾 Update User" : "✨ Add User"}
-          </button>
-          <button onClick={() => setShowModal(false)} className="flex-1 py-2 bg-slate-800/50 border border-slate-700 text-slate-300 rounded-lg hover:bg-slate-800 transition-all">
-            Cancel
-          </button>
-        </div>
-      </div>
-    </Modal>
-  </div>
-</div>
+        <label className="flex items-center gap
+```
