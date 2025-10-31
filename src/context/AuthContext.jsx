@@ -11,13 +11,13 @@ export function AuthProvider({ children }) {
 
   // Charger token et user depuis sessionStorage au démarrage
   useEffect(() => {
-    const storedToken = sessionStorage.getItem("access");
-    const storedUser = sessionStorage.getItem("user");
+    const storedToken = sessionStorage.getItem("access") || localStorage.getItem("access");
+    const storedUser = sessionStorage.getItem("user") || localStorage.getItem("user");
     if (storedToken && storedUser) {
       const parsedUser = JSON.parse(storedUser);
       parsedUser.is_superuser = parsedUser.is_superuser === true || parsedUser.is_superuser === 1;
-      setUser(parsedUser);
-      setToken(storedToken);
+    setUser(parsedUser);
+    setToken(storedToken);
     }
     setLoading(false);
   }, []);
@@ -38,6 +38,10 @@ export function AuthProvider({ children }) {
         sessionStorage.setItem("access", res.data.access);
         sessionStorage.setItem("refresh", res.data.refresh);
         sessionStorage.setItem("user", JSON.stringify(userData));
+        // Mirror for compatibility with other screens that may read from localStorage
+        localStorage.setItem("access", res.data.access);
+        localStorage.setItem("refresh", res.data.refresh);
+        localStorage.setItem("user", JSON.stringify(userData));
         return userData;
       } else {
         setError(res.data.message || "Login failed");
@@ -62,10 +66,13 @@ export function AuthProvider({ children }) {
     } catch (err) {
       console.error("[Logout] Erreur lors du logout:", err.response || err);
     } finally {
-      // Toujours nettoyer le local/session storage
+    // Toujours nettoyer le local/session storage
       setUser(null);
       setToken(null);
-      sessionStorage.clear();
+    sessionStorage.clear();
+    localStorage.removeItem("access");
+    localStorage.removeItem("refresh");
+    localStorage.removeItem("user");
     }
   };
 

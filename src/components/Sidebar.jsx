@@ -11,9 +11,10 @@ export default function Sidebar() {
 
   const menuItems = [
     { path: "/dashboard", label: "Dashboard", icon: "📊" },
+    { path: "/equipements/scan", label: "Scan équipement", icon: "🎯" },
     { path: "/admin/zones", label: "Zones Sensibles", icon: "🗺️" },
     { path: "/admin/objects", label: "Objets", icon: "📦" },
-    { path: "/admin/equipment", label: "Équipements", icon: "🔧" },
+    { path: "/admin/equipements", label: "Équipements ", icon: "🛰️" },
     { path: "/admin/cameras", label: "Caméras", icon: "📹" },
     { path: "/admin/reports", label: "Rapports", icon: "📈" },
    { path: "/admin/users", label: "Utilisateurs", icon: "👥", superuserOnly: true },

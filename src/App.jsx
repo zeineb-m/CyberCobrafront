@@ -15,9 +15,10 @@ import DashboardPage from "./pages/DashboardPage"
 import UsersPage from "./pages/admin/UsersPage"
 import ZonesPage from "./pages/admin/ZonesPage"
 import ObjectsPage from "./pages/admin/ObjectsPage"
-import EquipmentPage from "./pages/admin/EquipmentPage"
 import ReportsPage from "./pages/admin/ReportsPage"
 import CamerasPage from "./pages/admin/CamerasPage"
+import EquipementsApiPage from "./pages/admin/EquipementsApiPage"
+import EquipementScan from "./pages/EquipementScan"
 
 function App() {
   return (
@@ -37,11 +38,12 @@ function App() {
               <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
                 <Route path="/dashboard" element={<DashboardPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/equipements/scan" element={<EquipementScan />} />
                 <Route path="/admin" element={<Outlet />}>
                   <Route path="users" element={<UsersPage />} />
                   <Route path="zones" element={<ZonesPage />} />
                   <Route path="objects" element={<ObjectsPage />} />
-                  <Route path="equipment" element={<EquipmentPage />} />
+                  <Route path="equipements" element={<EquipementsApiPage />} />
                   <Route path="reports" element={<ReportsPage />} />
                   <Route path="cameras" element={<CamerasPage />} />
                 </Route>

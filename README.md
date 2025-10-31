@@ -260,3 +260,16 @@ For issues or questions, please open an issue in the repository.
 ---
 
 **CyberCobra v1.0** - Ministry of Interior Security Platform
+
+## Module: Gestion d'équipement (CRUD)
+
+Une page Next.js est disponible à l'URL `/equipements` pour gérer les équipements (créer, lister, modifier, supprimer).
+
+Pré-requis:
+- L'API backend doit être lancée (Django)
+- Variable d'environnement `NEXT_PUBLIC_API_URL` (facultative). Par défaut: `http://localhost:8000`
+- Un token JWT d'accès doit être présent dans `localStorage` sous la clé `access` (obtenu via `/api/auth/login/` du backend)
+
+Endpoints utilisés:
+- GET/POST: `${NEXT_PUBLIC_API_URL}/api/equipements/`
+- PUT/DELETE: `${NEXT_PUBLIC_API_URL}/api/equipements/{id}/`
