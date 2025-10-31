@@ -1,192 +1,112 @@
-import { useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+/* AuthContext.jsx */
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import axios from "axios";
 
-export default function LoginPage() {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [stream, setStream] = useState(null);
+const AuthContext = createContext();
 
-  const videoRef = useRef(null);
-  const canvasRef = useRef(null);
-  const navigate = useNavigate();
-  const { login, setUser, setToken } = useAuth();
+// Utilisateur statique pour test/demo
+const STATIC_USER = {
+id: 0,
+username: "admin",
+email: "[demo@demo.com](mailto:demo@demo.com)",
+first_name: "Demo",
+last_name: "Admin",
+password: "admin",
+CIN: "00000000",
+phone: "00000000",
+is_superuser: true,
+image: null
+};
 
-  // Démarrer la caméra
-  const startCamera = async () => {
-    setError(null);
-    try {
-      const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
-      videoRef.current.srcObject = videoStream;
-      setStream(videoStream);
+const BACKEND_URL = "[https://cybercobra-4.onrender.com](https://cybercobra-4.onrender.com)";
 
-      await new Promise((resolve) => {
-        videoRef.current.onloadedmetadata = () => resolve();
-      });
+export function AuthProvider({ children }) {
+const [user, setUser] = useState(null);
+const [token, setToken] = useState(null);
+const [loading, setLoading] = useState(true);
+const [error, setError] = useState(null);
 
-      console.log("[FaceLogin] Camera started");
-    } catch (err) {
-      console.error("[FaceLogin] Cannot access camera:", err);
-      setError("Cannot access camera");
-    }
-  };
-
-  // Capturer la photo et retourner un Blob
-  const capturePhoto = () => {
-    if (!videoRef.current) return null;
-
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    console.log("[FaceLogin] Photo captured");
-
-    return new Promise((resolve) => {
-      canvas.toBlob((blob) => resolve(blob), "image/jpeg");
-    });
-  };
-
-  // Stopper la caméra
-  const stopCamera = () => {
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-      setStream(null);
-      console.log("[FaceLogin] Camera stopped");
-    }
-  };
-
-  // Login classique
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    try {
-      await login(username, password);
-      navigate("/dashboard");
-    } catch (err) {
-      console.error("[Login] Error:", err);
-      setError("Login failed");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Login avec face
-  const handleFaceButtonClick = async () => {
-    if (!stream) {
-      // Si la caméra n'est pas démarrée, on la démarre
-      await startCamera();
-    } else {
-      // Sinon, on capture et on envoie pour login
-      setLoading(true);
-      setError(null);
-      try {
-        const photoBlob = await capturePhoto();
-        if (!photoBlob) {
-          setError("No photo captured");
-          return;
-        }
-
-        const formData = new FormData();
-        formData.append("image", photoBlob, "face.jpg");
-
-        console.log("[FaceLogin] Sending photo to backend...");
-
-        const res = await axios.post(
-          "http://127.0.0.1:8000/api/auth/facelogin/",
-          formData,
-          { headers: { "Content-Type": "multipart/form-data" } }
-        );
-
-        console.log("[FaceLogin] Response:", res.data);
-
-        if (res.data.success) {
-          const userData = res.data.user;
-          setUser(userData);
-          setToken(res.data.access);
-          sessionStorage.setItem("access", res.data.access);
-          sessionStorage.setItem("refresh", res.data.refresh);
-          sessionStorage.setItem("user", JSON.stringify(userData));
-          navigate(userData.is_superuser ? "/dashboard" : "/user-page");
-        } else {
-          setError(res.data.message || "Face login failed");
-        }
-      } catch (err) {
-        console.error("[FaceLogin] Error:", err.response || err);
-        setError(err.response?.data?.message || "Face login failed");
-      } finally {
-        setLoading(false);
-        stopCamera();
-      }
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6">
-      <div className="w-full max-w-md bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-2xl p-8 shadow-2xl">
-        <h1 className="text-3xl font-bold text-center mb-6 text-white">Sign in</h1>
-
-        {error && <p className="text-red-400 text-sm mb-4">{error}</p>}
-
-        {/* Login classique */}
-        <form onSubmit={handleSubmit} className="space-y-4 mb-6">
-          <input
-            type="text"
-            placeholder="Username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            className="w-full px-4 py-2 rounded-lg bg-slate-800 text-white border border-slate-700"
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-2 rounded-lg bg-slate-800 text-white border border-slate-700"
-          />
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-lg font-semibold"
-          >
-            {loading ? "Signing in..." : "Sign In"}
-          </button>
-        </form>
-
-        <div className="text-center text-slate-400 mb-4">OR</div>
-
-        {/* Face login */}
-        <div className="flex flex-col items-center gap-4">
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            className="w-80 h-60 bg-black rounded-lg"
-          />
-          <canvas ref={canvasRef} className="hidden" />
-
-          <button
-            onClick={handleFaceButtonClick}
-            disabled={loading}
-            className={`px-4 py-2 rounded-lg text-white ${
-              !stream ? "bg-blue-500" : "bg-green-500"
-            }`}
-          >
-            {loading
-              ? stream
-                ? "Logging in..."
-                : "Starting..."
-              : "Login with Face"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+// Charger user/token au démarrage
+useEffect(() => {
+const storedToken = sessionStorage.getItem("access") || localStorage.getItem("access");
+const storedUser = sessionStorage.getItem("user") || localStorage.getItem("user");
+if (storedToken && storedUser) {
+const parsedUser = JSON.parse(storedUser);
+parsedUser.is_superuser = parsedUser.is_superuser === true || parsedUser.is_superuser === 1;
+setUser(parsedUser);
+setToken(storedToken);
 }
+setLoading(false);
+}, []);
+
+const login = useCallback(async (username, password) => {
+setError(null);
+
+```
+// Connexion avec utilisateur statique
+if (username === STATIC_USER.username && password === STATIC_USER.password) {
+  setUser(STATIC_USER);
+  setToken("static-token-demo");
+  sessionStorage.setItem("access", "static-token-demo");
+  sessionStorage.setItem("user", JSON.stringify(STATIC_USER));
+  return STATIC_USER;
+}
+
+// Sinon appel au backend
+try {
+  const res = await axios.post(`${BACKEND_URL}/api/auth/login/`, { username, password });
+  if (res.data.success) {
+    const userData = res.data.user;
+    userData.is_superuser = userData.is_superuser === true || userData.is_superuser === 1;
+    setUser(userData);
+    setToken(res.data.access);
+    sessionStorage.setItem("access", res.data.access);
+    sessionStorage.setItem("refresh", res.data.refresh);
+    sessionStorage.setItem("user", JSON.stringify(userData));
+    localStorage.setItem("access", res.data.access);
+    localStorage.setItem("refresh", res.data.refresh);
+    localStorage.setItem("user", JSON.stringify(userData));
+    return userData;
+  } else {
+    setError(res.data.message || "Login failed");
+    throw new Error(res.data.message);
+  }
+} catch (err) {
+  setError(err.response?.data?.message || "Login failed");
+  throw err;
+}
+```
+
+}, []);
+
+const logout = async () => {
+try {
+const refresh = sessionStorage.getItem("refresh");
+if (refresh && token !== "static-token-demo") {
+await axios.post(`${BACKEND_URL}/api/auth/logout/`, { refresh });
+}
+} catch (err) {
+console.error("[Logout] Error:", err.response || err);
+} finally {
+setUser(null);
+setToken(null);
+sessionStorage.clear();
+localStorage.removeItem("access");
+localStorage.removeItem("refresh");
+localStorage.removeItem("user");
+}
+};
+
+return (
+<AuthContext.Provider value={{ user, setUser, token, setToken, loading, error, login, logout, isAuthenticated: !!user }}>
+{children}
+</AuthContext.Provider>
+);
+}
+
+export function useAuth() {
+const context = useContext(AuthContext);
+if (!context) throw new Error("useAuth must be used within AuthProvider");
+return context;
+}
+
