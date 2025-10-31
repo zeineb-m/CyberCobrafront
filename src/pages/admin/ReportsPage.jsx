@@ -1,60 +1,186 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useData } from "../../context/DataContext"
-import Modal from "../../components/Modal"
-import { formatDate } from "../../utils/helpers"
+import { useState, useEffect } from "react";
+import Modal from "../../components/Modal";
+import ReportComponent from "../../components/ReportComponent";
 
 export default function ReportsPage() {
-  const { reports, addReport, updateReport, deleteReport } = useData()
-  const [showModal, setShowModal] = useState(false)
-  const [editingId, setEditingId] = useState(null)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [formData, setFormData] = useState({ title: "", type: "security", status: "pending" })
+  const [reports, setReports] = useState([]);
+  const [showModal, setShowModal] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [editingId, setEditingId] = useState(null);
+  const [formData, setFormData] = useState({
+    subject: "",
+    department: "security",
+    body: "",
+    bibliographies: [""],
+    used_documents: [""],
+    categories: [],
+  });
 
-  const filteredReports = reports.filter((r) => r.title.toLowerCase().includes(searchTerm.toLowerCase()))
+  const CATEGORY_OPTIONS = [
+    "security",
+    "policy",
+    "logistics",
+    "research",
+    "communication",
+    "emergency",
+    "administration",
+  ];
 
-  const handleAddReport = () => {
-    if (formData.title) {
-      if (editingId) {
-        updateReport(editingId, formData)
-        setEditingId(null)
-      } else {
-        addReport({ ...formData, date: new Date() })
+  const filteredReports =
+    reports?.filter((report) =>
+      report?.subject?.toLowerCase().includes(searchTerm?.toLowerCase() || "")
+    ) || [];
+
+  useEffect(() => {
+    fetchReports();
+  }, []);
+
+  const fetchReports = async () => {
+    try {
+      const token = sessionStorage.getItem("access");
+      const response = await fetch("http://127.0.0.1:8000/report/get/", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setReports(data);
       }
-      setFormData({ title: "", type: "security", status: "pending" })
-      setShowModal(false)
+    } catch (error) {
+      console.error("Error fetching reports:", error);
+    }
+  };
+
+  // Update handleAddReport to handle both create and update
+const handleAdd_Edit_Report = async () => {
+  if (formData.subject && formData.body) {
+    const token = sessionStorage.getItem("access");
+    const user = JSON.parse(sessionStorage.getItem("user"));
+
+    const reportData = {
+      subject: formData.subject,
+      body: formData.body,
+      department: formData.department,
+      bibliographies: formData.bibliographies.filter((b) => b.trim()),
+      used_documents: formData.used_documents.filter((d) => d.trim()),
+      categories: formData.categories,
+      writer: user.id,
+    };
+
+    try {
+      const url = editingId 
+        ? `http://127.0.0.1:8000/report/${editingId}/`  // Update endpoint
+        : "http://127.0.0.1:8000/report/create/";       // Create endpoint
+
+      const method = editingId ? "PUT" : "POST";
+
+      const response = await fetch(url, {
+        method: method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(reportData),
+      });
+
+      if (response.ok) {
+        setFormData({
+          subject: "",
+          department: "security",
+          body: "",
+          bibliographies: [""],
+          used_documents: [""],
+          categories: [],
+        });
+        setEditingId(null);
+        setShowModal(false);
+        fetchReports(); // Refresh the list
+      }
+    } catch (error) {
+      console.error("Error saving report:", error);
     }
   }
+};
 
-  const handleEdit = (report) => {
-    setFormData({ title: report.title, type: report.type, status: report.status })
-    setEditingId(report.id)
-    setShowModal(true)
-  }
+  const handleCategoryToggle = (category) => {
+    setFormData((prev) => ({
+      ...prev,
+      categories: prev.categories.includes(category)
+        ? prev.categories.filter((c) => c !== category)
+        : [...prev.categories, category],
+    }));
+  };
 
-  const handleDelete = (id) => {
-    if (confirm("Are you sure you want to delete this report?")) {
-      deleteReport(id)
-    }
-  }
+  const addBibliography = () => {
+    setFormData((prev) => ({
+      ...prev,
+      bibliographies: [...prev.bibliographies, ""],
+    }));
+  };
 
-  const handleOpenModal = () => {
-    setFormData({ title: "", type: "security", status: "pending" })
-    setEditingId(null)
-    setShowModal(true)
-  }
+  const addDocument = () => {
+    setFormData((prev) => ({
+      ...prev,
+      used_documents: [...prev.used_documents, ""],
+    }));
+  };
+
+  const updateBibliography = (index, value) => {
+    const updated = [...formData.bibliographies];
+    updated[index] = value;
+    setFormData((prev) => ({ ...prev, bibliographies: updated }));
+  };
+
+  const updateDocument = (index, value) => {
+    const updated = [...formData.used_documents];
+    updated[index] = value;
+    setFormData((prev) => ({ ...prev, used_documents: updated }));
+  };
+
+  // Add delete handler function
+  const handleDeleteReport = (deletedId) => {
+    setReports((prev) => prev.filter((report) => report.id !== deletedId));
+  };
+
+  // Add edit handler
+  const handleEditReport = (report) => {
+    setFormData({
+      subject: report.subject,
+      department: report.department,
+      body: report.body,
+      bibliographies: report.bibliographies.length
+        ? report.bibliographies
+        : [""],
+      used_documents: report.used_documents.length
+        ? report.used_documents
+        : [""],
+      categories: report.categories || [],
+    });
+    setEditingId(report.id);
+    setShowModal(true);
+  };
 
   return (
     <div className="p-8 bg-background min-h-screen">
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-text">Reports & Statistics</h1>
-            <p className="text-text-secondary">View and manage security reports</p>
+            <h1 className="text-3xl font-bold text-text">
+              Reports & Statistics
+            </h1>
+            <p className="text-text-secondary">
+              View and manage security reports
+            </p>
           </div>
           <button
-            onClick={handleOpenModal}
+              onClick={() => {
+                setEditingId(null); // Reset when creating new
+                setShowModal(true);
+              }}
             className="px-6 py-2 bg-accent text-primary font-medium rounded-lg hover:bg-accent-light transition-colors"
           >
             + Generate Report
@@ -72,101 +198,143 @@ export default function ReportsPage() {
           />
         </div>
 
-        {/* Reports Table */}
-        <div className="bg-surface border border-border rounded-lg overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-primary border-b border-border">
-              <tr>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-text">Title</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-text">Type</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-text">Date</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-text">Status</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-text">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredReports.map((report) => (
-                <tr key={report.id} className="border-b border-border hover:bg-primary transition-colors">
-                  <td className="px-6 py-3 text-sm text-text">{report.title}</td>
-                  <td className="px-6 py-3 text-sm text-text capitalize">{report.type}</td>
-                  <td className="px-6 py-3 text-sm text-text-secondary">{formatDate(report.date)}</td>
-                  <td className="px-6 py-3 text-sm">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        report.status === "completed"
-                          ? "bg-green-500/20 text-green-400"
-                          : "bg-yellow-500/20 text-yellow-400"
-                      }`}
-                    >
-                      {report.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-3 text-sm">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEdit(report)}
-                        className="px-3 py-1 text-xs bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 transition-colors"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(report.id)}
-                        className="px-3 py-1 text-xs bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 transition-colors"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {/* Reports List */}
+        <div className="space-y-4">
+          {filteredReports.map((report) => (
+            // Pass onEdit to ReportComponent
+            <ReportComponent
+              key={report.id}
+              report={report}
+              onDelete={handleDeleteReport}
+              onEdit={handleEditReport}
+            />
+          ))}
         </div>
 
-        {/* Add/Edit Report Modal */}
+        {/* Add Report Modal */}
         <Modal
           isOpen={showModal}
           onClose={() => setShowModal(false)}
           title={editingId ? "Edit Report" : "Generate New Report"}
         >
-          <div className="space-y-4">
+          <div className="space-y-4 max-h-[80vh] overflow-y-auto">
             <div>
-              <label className="block text-sm font-medium text-text-secondary mb-2">Report Title</label>
+              <label className="block text-sm font-medium text-text-secondary mb-2">
+                Subject *
+              </label>
               <input
                 type="text"
-                value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                value={formData.subject}
+                onChange={(e) =>
+                  setFormData({ ...formData, subject: e.target.value })
+                }
                 className="w-full px-4 py-2 bg-primary border border-border rounded-lg text-text focus:outline-none focus:border-accent"
-                placeholder="e.g., Weekly Security Report"
+                placeholder="Report subject/title"
               />
             </div>
+
             <div>
-              <label className="block text-sm font-medium text-text-secondary mb-2">Report Type</label>
+              <label className="block text-sm font-medium text-text-secondary mb-2">
+                Department *
+              </label>
               <select
-                value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                value={formData.department}
+                onChange={(e) =>
+                  setFormData({ ...formData, department: e.target.value })
+                }
                 className="w-full px-4 py-2 bg-primary border border-border rounded-lg text-text focus:outline-none focus:border-accent"
               >
-                <option value="security">Security</option>
-                <option value="equipment">Equipment</option>
-                <option value="incident">Incident</option>
-                <option value="maintenance">Maintenance</option>
+                <option value="security">Security Department</option>
+                <option value="immigration">Immigration Department</option>
+                <option value="civil_protection">Civil Protection</option>
+                <option value="finance">Finance Department</option>
+                <option value="planning">Planning and Development</option>
               </select>
             </div>
+
             <div>
-              <label className="block text-sm font-medium text-text-secondary mb-2">Status</label>
-              <select
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                className="w-full px-4 py-2 bg-primary border border-border rounded-lg text-text focus:outline-none focus:border-accent"
-              >
-                <option value="pending">Pending</option>
-                <option value="completed">Completed</option>
-              </select>
+              <label className="block text-sm font-medium text-text-secondary mb-2">
+                Body *
+              </label>
+              <textarea
+                value={formData.body}
+                onChange={(e) =>
+                  setFormData({ ...formData, body: e.target.value })
+                }
+                className="w-full px-4 py-2 bg-primary border border-border rounded-lg text-text focus:outline-none focus:border-accent h-32"
+                placeholder="Detailed report content (min 500 characters)"
+              />
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-text-secondary mb-2">
+                Bibliographies
+              </label>
+              {formData.bibliographies.map((bib, index) => (
+                <input
+                  key={index}
+                  type="text"
+                  value={bib}
+                  onChange={(e) => updateBibliography(index, e.target.value)}
+                  className="w-full px-4 py-2 bg-primary border border-border rounded-lg text-text focus:outline-none focus:border-accent mb-2"
+                  placeholder="Source URL or reference"
+                />
+              ))}
+              <button
+                onClick={addBibliography}
+                className="text-sm text-accent hover:text-accent-light"
+              >
+                + Add Bibliography
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-text-secondary mb-2">
+                Used Documents
+              </label>
+              {formData.used_documents.map((doc, index) => (
+                <input
+                  key={index}
+                  type="text"
+                  value={doc}
+                  onChange={(e) => updateDocument(index, e.target.value)}
+                  className="w-full px-4 py-2 bg-primary border border-border rounded-lg text-text focus:outline-none focus:border-accent mb-2"
+                  placeholder="Document name or path"
+                />
+              ))}
+              <button
+                onClick={addDocument}
+                className="text-sm text-accent hover:text-accent-light"
+              >
+                + Add Document
+              </button>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-text-secondary mb-2">
+                Categories
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {CATEGORY_OPTIONS.map((category) => (
+                  <button
+                    key={category}
+                    type="button"
+                    onClick={() => handleCategoryToggle(category)}
+                    className={`px-3 py-1 rounded-full text-sm border ${
+                      formData.categories.includes(category)
+                        ? "bg-accent text-primary border-accent"
+                        : "bg-primary text-text border-border"
+                    }`}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="flex gap-3 pt-4">
               <button
-                onClick={handleAddReport}
+                onClick={handleAdd_Edit_Report}
                 className="flex-1 py-2 bg-accent text-primary font-medium rounded-lg hover:bg-accent-light transition-colors"
               >
                 {editingId ? "Update Report" : "Generate Report"}
@@ -182,5 +350,5 @@ export default function ReportsPage() {
         </Modal>
       </div>
     </div>
-  )
+  );
 }
