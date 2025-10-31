@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useAuth } from "../../context/AuthContext"
 import Modal from "../../components/Modal"
 
-const BACKEND_URL = "[https://cybercobra-4.onrender.com](https://cybercobra-4.onrender.com)"
+const BACKEND_URL = "https://cybercobra-4.onrender.com"
 
 export default function UsersPage() {
 const { user: currentUser, token } = useAuth()
@@ -40,8 +40,8 @@ fetchUsers()
 
 const fetchUsers = async () => {
 try {
-const res = await fetch(`${BACKEND_URL}/api/auth/users/`, {
-headers: { Authorization: `Bearer ${token}` },
+const res = await fetch(${BACKEND_URL}/api/auth/users/, {
+headers: { Authorization: Bearer ${token} },
 });
 const data = await res.json();
 if (res.ok) setUsers(data)
@@ -64,7 +64,6 @@ setError("Please fill all required fields")
 return
 }
 
-```
 setLoadingForm(true)
 setError("")
 try {
@@ -110,7 +109,6 @@ try {
 } finally {
   setLoadingForm(false)
 }
-```
 
 }
 
@@ -134,9 +132,9 @@ setShowModal(true)
 const handleDelete = async (id) => {
 if (!confirm("Are you sure you want to delete this user?")) return
 try {
-const res = await fetch(`${BACKEND_URL}/api/auth/users/${id}/`, {
+const res = await fetch(${BACKEND_URL}/api/auth/users/${id}/, {
 method: "DELETE",
-headers: { Authorization: `Bearer ${token}` },
+headers: { Authorization: Bearer ${token} },
 })
 if (res.ok) await fetchUsers()
 else console.error(await res.json())
@@ -152,7 +150,14 @@ u =>
 (u.email ?? "").toLowerCase().includes(searchTerm.toLowerCase())
 )
 
-return ( <div className="p-8 bg-slate-950 min-h-screen"> <div className="max-w-6xl mx-auto"> <div className="flex items-center justify-between mb-8"> <div> <h1 className="text-4xl font-bold mb-2 text-white">User Management</h1> <p className="text-slate-400 text-lg">Manage system users and permissions</p> </div>
+return (
+
+
+
+
+User Management
+Manage system users and permissions
+
 <button
 onClick={() => {
 setEditingId(null)
@@ -170,10 +175,13 @@ is_active: true,
 })
 setShowModal(true)
 }}
-className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold rounded-xl hover:shadow-lg transition-all flex items-center gap-2"
-> <span className="text-xl">+</span> Add User </button> </div>
+className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold rounded-xl hover transition-all flex items-center gap-2"
+>
++ Add User
 
-```
+
+
+
     <input
       type="text"
       placeholder="🔍 Search users by name or email..."
@@ -228,7 +236,6 @@ className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-
         </tbody>
       </table>
     </div>
-
     <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editingId ? "Edit User" : "Add New User"}>
       <div className="space-y-4">
         {error && <p className="text-red-400">{error}</p>}
