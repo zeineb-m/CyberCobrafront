@@ -1,53 +1,127 @@
 "use client"
 
-import { useState } from "react"
-import { useData } from "../../context/DataContext"
+import { useState, useEffect } from "react"
 import Modal from "../../components/Modal"
+import FireDetectionModal from "../../components/FireDetectionModal"
+
+const API_URL = 'http://localhost:8000/api'
+
+function getAuthHeaders() {
+  const token = sessionStorage.getItem('access') || localStorage.getItem('access')
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+  }
+}
 
 export default function CamerasPage() {
-  const { cameras, zones, addCamera, updateCamera, deleteCamera } = useData()
+  const [cameras, setCameras] = useState([])
+  const [loading, setLoading] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [searchTerm, setSearchTerm] = useState("")
-  const [formData, setFormData] = useState({ name: "", zoneId: "", resolution: "1080p", status: "recording", ip: "" })
+  const [formData, setFormData] = useState({ name: "", zone: "", resolution: "1080p", status: "RECORDING", ip_address: "" })
+  const [showFireDetection, setShowFireDetection] = useState(false)
+  const [selectedCamera, setSelectedCamera] = useState(null)
+
+  useEffect(() => {
+    fetchCameras()
+  }, [])
+
+  async function fetchCameras() {
+    setLoading(true)
+    try {
+      const response = await fetch(`${API_URL}/cameras/`, {
+        headers: getAuthHeaders()
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setCameras(data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch cameras:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const filteredCameras = cameras.filter((c) => c.name.toLowerCase().includes(searchTerm.toLowerCase()))
 
-  const handleAddCamera = () => {
-    if (formData.name && formData.zoneId && formData.ip) {
+  async function handleAddCamera() {
+    if (!formData.name || !formData.zone || !formData.ip_address) {
+      alert('Please fill in all required fields')
+      return
+    }
+
+    try {
       if (editingId) {
-        updateCamera(editingId, formData)
-        setEditingId(null)
+        // Update
+        const response = await fetch(`${API_URL}/cameras/${editingId}/`, {
+          method: 'PUT',
+          headers: getAuthHeaders(),
+          body: JSON.stringify(formData)
+        })
+        if (response.ok) {
+          await fetchCameras()
+          setEditingId(null)
+        }
       } else {
-        addCamera(formData)
+        // Create
+        const response = await fetch(`${API_URL}/cameras/`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify(formData)
+        })
+        if (response.ok) {
+          await fetchCameras()
+        }
       }
-      setFormData({ name: "", zoneId: "", resolution: "1080p", status: "recording", ip: "" })
+      setFormData({ name: "", zone: "", resolution: "1080p", status: "RECORDING", ip_address: "" })
       setShowModal(false)
+    } catch (error) {
+      console.error('Failed to save camera:', error)
+      alert('Failed to save camera')
     }
   }
 
-  const handleEdit = (camera) => {
+  function handleEdit(camera) {
     setFormData({
       name: camera.name,
-      zoneId: camera.zoneId,
+      zone: camera.zone,
       resolution: camera.resolution,
       status: camera.status,
-      ip: camera.ip,
+      ip_address: camera.ip_address,
     })
-    setEditingId(camera.id)
+    setEditingId(camera.id_camera)
     setShowModal(true)
   }
 
-  const handleDelete = (id) => {
-    if (confirm("Are you sure you want to delete this camera?")) {
-      deleteCamera(id)
+  async function handleDelete(id) {
+    if (!confirm("Are you sure you want to delete this camera?")) return
+
+    try {
+      const response = await fetch(`${API_URL}/cameras/${id}/`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      })
+      if (response.ok) {
+        await fetchCameras()
+      }
+    } catch (error) {
+      console.error('Failed to delete camera:', error)
+      alert('Failed to delete camera')
     }
   }
 
-  const handleOpenModal = () => {
-    setFormData({ name: "", zoneId: "", resolution: "1080p", status: "recording", ip: "" })
+  function handleOpenModal() {
+    setFormData({ name: "", zone: "", resolution: "1080p", status: "RECORDING", ip_address: "" })
     setEditingId(null)
     setShowModal(true)
+  }
+
+  function handleOpenFireDetection(camera) {
+    setSelectedCamera(camera)
+    setShowFireDetection(true)
   }
 
   return (
@@ -91,41 +165,72 @@ export default function CamerasPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredCameras.map((camera) => {
-                const zone = zones.find((z) => z.id === camera.zoneId)
-                return (
-                  <tr key={camera.id} className="border-b border-border hover:bg-primary transition-colors">
-                    <td className="px-6 py-3 text-sm text-text">{camera.name}</td>
-                    <td className="px-6 py-3 text-sm text-text-secondary">{zone?.name || "Unknown"}</td>
-                    <td className="px-6 py-3 text-sm text-text font-mono">{camera.ip}</td>
-                    <td className="px-6 py-3 text-sm text-text">{camera.resolution}</td>
-                    <td className="px-6 py-3 text-sm">
-                      <span className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-xs font-medium">
-                        {camera.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-3 text-sm">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleEdit(camera)}
-                          className="px-3 py-1 text-xs bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 transition-colors"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(camera.id)}
-                          className="px-3 py-1 text-xs bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 transition-colors"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
+              {loading ? (
+                <tr>
+                  <td colSpan="6" className="px-6 py-8 text-center text-text-secondary">Loading cameras...</td>
+                </tr>
+              ) : filteredCameras.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="px-6 py-8 text-center text-text-secondary">No cameras found</td>
+                </tr>
+              ) : (
+                filteredCameras.map((camera) => {
+                  const getStatusColor = (status) => {
+                    if (status === 'RECORDING') return 'bg-green-500/20 text-green-400'
+                    if (status === 'OFFLINE') return 'bg-red-500/20 text-red-400'
+                    return 'bg-yellow-500/20 text-yellow-400'
+                  }
+                  
+                  return (
+                    <tr key={camera.id_camera} className="border-b border-border hover:bg-primary transition-colors">
+                      <td className="px-6 py-3 text-sm text-text font-medium">{camera.name}</td>
+                      <td className="px-6 py-3 text-sm text-text-secondary">{camera.zone}</td>
+                      <td className="px-6 py-3 text-sm text-text font-mono">{camera.ip_address}</td>
+                      <td className="px-6 py-3 text-sm text-text">{camera.resolution}</td>
+                      <td className="px-6 py-3 text-sm">
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(camera.status)}`}>
+                          {camera.status.toLowerCase()}
+                        </span>
+                      </td>
+                      <td className="px-6 py-3 text-sm">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleOpenFireDetection(camera)}
+                            className="px-3 py-1 text-xs bg-orange-500/20 text-orange-400 rounded hover:bg-orange-500/30 transition-colors font-medium"
+                            title="AI Fire Detection"
+                          >
+                            🔥 Detect
+                          </button>
+                          <button
+                            onClick={() => handleEdit(camera)}
+                            className="px-3 py-1 text-xs bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 transition-colors"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDelete(camera.id_camera)}
+                            className="px-3 py-1 text-xs bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 transition-colors"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
             </tbody>
           </table>
         </div>
+
+        {/* Fire Detection Modal */}
+        {selectedCamera && (
+          <FireDetectionModal
+            isOpen={showFireDetection}
+            onClose={() => setShowFireDetection(false)}
+            cameraName={selectedCamera.name}
+          />
+        )}
 
         {/* Add/Edit Camera Modal */}
         <Modal
@@ -141,30 +246,25 @@ export default function CamerasPage() {
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className="w-full px-4 py-2 bg-primary border border-border rounded-lg text-text focus:outline-none focus:border-accent"
-                placeholder="e.g., Front Gate Camera"
+                placeholder="e.g., Front Gate"
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-text-secondary mb-2">Zone</label>
-              <select
-                value={formData.zoneId}
-                onChange={(e) => setFormData({ ...formData, zoneId: e.target.value })}
+              <input
+                type="text"
+                value={formData.zone}
+                onChange={(e) => setFormData({ ...formData, zone: e.target.value })}
                 className="w-full px-4 py-2 bg-primary border border-border rounded-lg text-text focus:outline-none focus:border-accent"
-              >
-                <option value="">Select a zone</option>
-                {zones.map((z) => (
-                  <option key={z.id} value={z.id}>
-                    {z.name}
-                  </option>
-                ))}
-              </select>
+                placeholder="e.g., Zone A"
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-text-secondary mb-2">IP Address</label>
               <input
                 type="text"
-                value={formData.ip}
-                onChange={(e) => setFormData({ ...formData, ip: e.target.value })}
+                value={formData.ip_address}
+                onChange={(e) => setFormData({ ...formData, ip_address: e.target.value })}
                 className="w-full px-4 py-2 bg-primary border border-border rounded-lg text-text focus:outline-none focus:border-accent"
                 placeholder="192.168.1.10"
               />
@@ -180,6 +280,18 @@ export default function CamerasPage() {
                 <option value="1080p">1080p</option>
                 <option value="2K">2K</option>
                 <option value="4K">4K</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-text-secondary mb-2">Status</label>
+              <select
+                value={formData.status}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                className="w-full px-4 py-2 bg-primary border border-border rounded-lg text-text focus:outline-none focus:border-accent"
+              >
+                <option value="RECORDING">Recording</option>
+                <option value="OFFLINE">Offline</option>
+                <option value="MAINTENANCE">Maintenance</option>
               </select>
             </div>
             <div className="flex gap-3 pt-4">
