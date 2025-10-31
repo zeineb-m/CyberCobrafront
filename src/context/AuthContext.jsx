@@ -6,10 +6,11 @@ const AuthContext = createContext();
 // Utilisateur statique pour test/demo
 const STATIC_USER = {
   id: 0,
-  username: "demo_admin",
+  username: "admin",
   email: "demo@demo.com",
   first_name: "Demo",
   last_name: "Admin",
+  password:"admin"
   CIN: "00000000",
   phone: "00000000",
   is_superuser: true,
